@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>🚲 鹈鹕骑行：海岸飞鱼狂飙 (Pelican Coastal Ride 3D)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0e17;
+      color: #fff;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* HUD OVERLAY */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 20px;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      pointer-events: auto;
+    }
+
+    /* TOP BAR */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      width: 100%;
+    }
+
+    /* SPEEDOMETER & STATS */
+    .stats-card {
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 160px;
+    }
+    .speed-display {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .speed-num {
+      font-size: 38px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #38bdf8;
+      text-shadow: 0 0 16px rgba(56, 189, 248, 0.6);
+      line-height: 1;
+    }
+    .speed-unit {
+      font-size: 13px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .sub-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+    .sub-stats span b {
+      color: #f59e0b;
+    }
+
+    /* CENTER SCORE & DAY-NIGHT */
+    .center-hud {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .score-badge {
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .fish-icon {
+      font-size: 24px;
+      animation: floatFish 2s ease-in-out infinite;
+    }
+    @keyframes floatFish {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-4px) rotate(8deg); }
+    }
+    .score-text {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fbbf24;
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+    }
+    .combo-tag {
+      font-size: 12px;
+      background: linear-gradient(135deg, #ef4444, #f59e0b);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: none;
+    }
+
+    .time-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .autopilot-banner {
+      font-size: 12px;
+      font-weight: 700;
+      color: #10b981;
+      padding: 4px 14px;
+      border-radius: 20px;
+      background: rgba(16, 185, 129, 0.18);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      display: none;
+      animation: pulseGreen 1.5s infinite;
+    }
+    @keyframes pulseGreen {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.04); }
+    }
+
+    /* TOP RIGHT CONTROLS & QUALITY */
+    .controls-top-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .hud-btn {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+    .hud-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+    .fps-badge {
+      padding: 6px 12px;
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .fps-badge b {
+      color: #38bdf8;
+    }
+
+    /* ACHIEVEMENT NOTIFICATION BANNER */
+    #achievement-popup {
+      position: absolute;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-30px);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(17, 24, 39, 0.9);
+      border: 2px solid #f59e0b;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(245, 158, 11, 0.35);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #achievement-popup.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .ach-icon-big {
+      font-size: 32px;
+    }
+    .ach-text-group h4 {
+      font-size: 12px;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .ach-text-group p {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* CAMERA SWITCHER BAR (BOTTOM CENTER) */
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+    }
+    .camera-bar {
+      padding: 6px 10px;
+      display: flex;
+      gap: 6px;
+    }
+    .cam-btn {
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .cam-btn.active, .cam-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    /* KEY HINTS */
+    .key-hints {
+      padding: 8px 16px;
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      gap: 12px;
+    }
+    .key-hints kbd {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    /* TOUCH VIRTUAL BUTTONS FOR MOBILE */
+    #touch-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: none;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .touch-group {
+      display: flex;
+      gap: 14px;
+      pointer-events: auto;
+    }
+    .t-btn {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.75);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      color: #fff;
+      font-size: 20px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      active-scale: 0.95;
+    }
+    .t-btn:active {
+      background: rgba(56, 189, 248, 0.4);
+      border-color: #38bdf8;
+      transform: scale(0.92);
+    }
+
+    /* ACHIEVEMENTS MODAL */
+    #achievements-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-content {
+      width: 100%;
+      max-width: 680px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .modal-header h3 {
+      font-size: 18px;
+      color: #f59e0b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .close-btn {
+      font-size: 24px;
+      cursor: pointer;
+      color: #94a3b8;
+    }
+    .achievements-grid {
+      padding: 18px 20px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .ach-card {
+      padding: 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      opacity: 0.5;
+      transition: all 0.2s;
+    }
+    .ach-card.unlocked {
+      opacity: 1;
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.4);
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
+    }
+    .ach-card-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ach-card-icon {
+      font-size: 20px;
+    }
+    .ach-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    .ach-card-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.3;
+    }
+
+    /* INTRO OVERLAY */
+    #start-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.85) 0%, rgba(10, 14, 23, 0.98) 100%);
+      backdrop-filter: blur(12px);
+      z-index: 150;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      gap: 16px;
+    }
+    .title-emoji {
+      font-size: 64px;
+      animation: bikeBob 1.6s ease-in-out infinite alternate;
+    }
+    @keyframes bikeBob {
+      0% { transform: translateY(-8px) rotate(-4deg); }
+      100% { transform: translateY(6px) rotate(4deg); }
+    }
+    #start-overlay h1 {
+      font-size: 36px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #38bdf8, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    #start-overlay p {
+      max-width: 500px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    .start-btn {
+      padding: 14px 42px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #0f172a;
+      background: linear-gradient(135deg, #38bdf8, #fbbf24);
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(56, 189, 248, 0.4);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-top: 8px;
+    }
+    .start-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 14px 40px rgba(251, 191, 36, 0.6);
+    }
+
+    @media (max-width: 768px) {
+      #touch-controls { display: flex; }
+      .key-hints { display: none; }
+      .speed-num { font-size: 30px; }
+      .camera-bar { display: none; }
+    }
+  </style>
+  <!-- Three.js from Cloudflare CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <!-- TOP ROW -->
+    <div class="top-bar">
+      <div class="glass-panel stats-card">
+        <div class="speed-display">
+          <span class="speed-num" id="speed-val">0</span>
+          <span class="speed-unit">KM/H</span>
+        </div>
+        <div class="sub-stats">
+          <span>踏频 <b id="cadence-val">0</b> RPM</span>
+          <span>路程 <b id="dist-val">0</b> M</span>
+        </div>
+      </div>
+
+      <div class="center-hud">
+        <div class="glass-panel score-badge">
+          <span class="fish-icon">🐟</span>
+          <span class="score-text" id="score-val">0</span>
+          <span class="combo-tag" id="combo-tag">2x COMBO</span>
+        </div>
+        <div class="time-status" id="time-status">
+          <span id="time-icon">🌅</span>
+          <span id="time-text">黄昏落日 (Golden Sunset)</span>
+        </div>
+        <div class="autopilot-banner" id="autopilot-banner">
+          🤖 自动驾驶追鱼中 (AUTOPILOT ON)
+        </div>
+      </div>
+
+      <div class="controls-top-right">
+        <button class="glass-panel hud-btn" id="audio-toggle-btn" title="开关音乐音效">
+          <span id="audio-icon">🔊</span> 音效
+        </button>
+        <button class="glass-panel hud-btn" id="achievements-btn" title="查看成就">
+          🏆 成就 (<span id="ach-count">0</span>/14)
+        </button>
+        <div class="glass-panel fps-badge">
+          <span id="quality-tag">画质: <b>极致</b></span>
+          <span id="fps-val">60 FPS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACHIEVEMENT POPUP BANNER -->
+    <div id="achievement-popup">
+      <div class="ach-icon-big" id="ach-pop-icon">🏆</div>
+      <div class="ach-text-group">
+        <h4>解锁新成就 (Achievement Unlocked)</h4>
+        <p id="ach-pop-title">极速狂飙</p>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-bar">
+      <div class="glass-panel key-hints">
+        <span><kbd>W</kbd> 加速</span>
+        <span><kbd>S</kbd> 减速/刹车</span>
+        <span><kbd>A</kbd>/<kbd>D</kbd> 变道抓鱼</span>
+        <span><kbd>Space</kbd> 跳跃</span>
+        <span><kbd>T</kbd> 展翅抬前轮</span>
+        <span><kbd>C</kbd> 切换视角</span>
+      </div>
+
+      <div class="glass-panel camera-bar">
+        <button class="cam-btn active" data-cam="0">跟拍追随 [1]</button>
+        <button class="cam-btn" data-cam="1">鹈鹕视角 [2]</button>
+        <button class="cam-btn" data-cam="2">电影运镜 [3]</button>
+        <button class="cam-btn" data-cam="3">侧面特写 [4]</button>
+        <button class="cam-btn" data-cam="4">高空俯瞰 [5]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOUCH CONTROLS (MOBILE) -->
+  <div id="touch-controls">
+    <div class="touch-group">
+      <button class="t-btn" id="t-left">◀</button>
+      <button class="t-btn" id="t-right">▶</button>
+    </div>
+    <div class="touch-group">
+      <button class="t-btn" id="t-wheelie">🪽</button>
+      <button class="t-btn" id="t-jump">⬆</button>
+      <button class="t-btn" id="t-brake">S</button>
+      <button class="t-btn" id="t-gas">W</button>
+    </div>
+  </div>
+
+  <!-- ACHIEVEMENTS MODAL -->
+  <div id="achievements-modal">
+    <div class="glass-panel modal-content">
+      <div class="modal-header">
+        <h3>🏆 14 项骑行抓鱼成就 (Pelican Achievements)</h3>
+        <span class="close-btn" id="close-modal">&times;</span>
+      </div>
+      <div class="achievements-grid" id="achievements-grid">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- START OVERLAY -->
+  <div id="start-overlay">
+    <div class="title-emoji">🚲🪽</div>
+    <h1>鹈鹕骑行：海岸飞鱼狂飙</h1>
+    <p>
+      戴头盔、墨镜，脖系红色飘扬围巾的霸气鹈鹕在此启程！<br>
+      沿黄金海岸公路疾驰，在黄昏与璀璨星月夜间跃浪抓鱼。<br>
+      具备布料物理拟真、实时踏频音乐合成与自动巡航追鱼系统。
+    </p>
+    <button class="start-btn" id="start-game-btn">启程狂飙 (START RIDE)</button>
+  </div>
+
+  <script>
+  /* ==========================================================================
+     PELICAN COASTAL RIDE 3D - COMPLETE ENGINE IMPLEMENTATION
+     ========================================================================== */
+
+  // 1. SOUND SYNTHESIZER (WEB AUDIO API - 100% PROCEDURAL, ZERO DEPENDENCIES)
+  class SoundEngine {
+    constructor() {
+      this.ctx = null;
+      this.enabled = true;
+      this.tempo = 100; // BPM
+      this.nextNoteTime = 0;
+      this.beatStep = 0;
+      this.chords = [
+        [261.63, 329.63, 392.00, 493.88], // Cmaj7
+        [220.00, 261.63, 329.63, 392.00], // Am7
+        [174.61, 220.00, 261.63, 329.63], // Fmaj7
+        [196.00, 246.94, 293.66, 349.23]  // G7
+      ];
+      this.currentChord = 0;
+      this.windNode = null;
+      this.windGain = null;
+      this.bikeGain = null;
+    }
+
+    init() {
+      if (this.ctx) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+
+      // Master Limiter
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+      this.masterGain.connect(this.ctx.destination);
+
+      // Continuous Wind Generator
+      const bufferSize = this.ctx.sampleRate * 2;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      const whiteNoise = this.ctx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+      whiteNoise.loop = true;
+
+      const windFilter = this.ctx.createBiquadFilter();
+      windFilter.type = 'lowpass';
+      windFilter.frequency.setValueAtTime(350, this.ctx.currentTime);
+
+      this.windGain = this.ctx.createGain();
+      this.windGain.gain.setValueAtTime(0.01, this.ctx.currentTime);
+
+      whiteNoise.connect(windFilter);
+      windFilter.connect(this.windGain);
+      this.windGain.connect(this.masterGain);
+      whiteNoise.start();
+
+      // Bike Gear/Rolling Noise
+      const bikeFilter = this.ctx.createBiquadFilter();
+      bikeFilter.type = 'bandpass';
+      bikeFilter.frequency.setValueAtTime(800, this.ctx.currentTime);
+      bikeFilter.Q.setValueAtTime(3.0, this.ctx.currentTime);
+
+      this.bikeGain = this.ctx.createGain();
+      this.bikeGain.gain.setValueAtTime(0.0, this.ctx.currentTime);
+
+      whiteNoise.connect(bikeFilter);
+      bikeFilter.connect(this.bikeGain);
+      this.bikeGain.connect(this.masterGain);
+
+      this.nextNoteTime = this.ctx.currentTime + 0.1;
+    }
+
+    setSpeed(speedRatio) {
+      if (!this.ctx || !this.enabled) return;
+      // Update BPM based on pedal cadence (80 to 155 BPM)
+      this.tempo = 80 + speedRatio * 75;
+
+      // Update wind sound
+      if (this.windGain) {
+        this.windGain.gain.setTargetAtTime(0.02 + speedRatio * 0.12, this.ctx.currentTime, 0.1);
+      }
+      // Update bike gear hum
+      if (this.bikeGain) {
+        this.bikeGain.gain.setTargetAtTime(speedRatio > 0.05 ? speedRatio * 0.08 : 0, this.ctx.currentTime, 0.1);
+      }
+    }
+
+    updateMusic() {
+      if (!this.ctx || !this.enabled) return;
+      const now = this.ctx.currentTime;
+      const secondsPerBeat = 60.0 / (this.tempo * 2); // 8th note steps
+
+      while (this.nextNoteTime < now + 0.2) {
+        this.playBeat(this.nextNoteTime, this.beatStep);
+        this.nextNoteTime += secondsPerBeat;
+        this.beatStep = (this.beatStep + 1) % 16;
+        if (this.beatStep === 0) {
+          this.currentChord = (this.currentChord + 1) % this.chords.length;
+        }
+      }
+    }
+
+    playBeat(time, step) {
+      // Bass on beats 0, 4, 8, 12
+      if (step % 4 === 0) {
+        this.synthBass(this.chords[this.currentChord][0] / 2, time, 0.35);
+      }
+
+      // Arpeggiated Melody Synth
+      const noteIdx = [0, 1, 2, 3, 2, 1, 0, 2][step % 8];
+      const freq = this.chords[this.currentChord][noteIdx] * (step % 16 > 8 ? 2 : 1);
+      this.synthArp(freq, time, 0.15);
+
+      // Hi-Hat noise burst
+      if (step % 2 === 0) {
+        this.synthHiHat(time, step % 4 === 2 ? 0.05 : 0.02);
+      }
+    }
+
+    synthBass(freq, time, dur) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.2, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(time);
+      osc.stop(time + dur);
+    }
+
+    synthArp(freq, time, dur) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.08, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(time);
+      osc.stop(time + dur);
+    }
+
+    synthHiHat(time, vol) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(8000, time);
+
+      gain.gain.setValueAtTime(vol, time);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.04);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(time);
+      osc.stop(time + 0.04);
+    }
+
+    playCatchFish() {
+      if (!this.ctx || !this.enabled) return;
+      const time = this.ctx.currentTime;
+      // High bright two-tone chime
+      [587.33, 880.00, 1174.66].forEach((f, idx) => {
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, time + idx * 0.06);
+        g.gain.setValueAtTime(0.18, time + idx * 0.06);
+        g.gain.exponentialRampToValueAtTime(0.001, time + idx * 0.06 + 0.25);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(time + idx * 0.06);
+        osc.stop(time + idx * 0.06 + 0.25);
+      });
+    }
+
+    playJump() {
+      if (!this.ctx || !this.enabled) return;
+      const time = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, time);
+      osc.frequency.exponentialRampToValueAtTime(660, time + 0.22);
+      g.gain.setValueAtTime(0.2, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+      osc.connect(g);
+      g.connect(this.masterGain);
+      osc.start(time);
+      osc.stop(time + 0.25);
+    }
+
+    playWingFlap() {
+      if (!this.ctx || !this.enabled) return;
+      const time = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, time);
+      osc.frequency.exponentialRampToValueAtTime(320, time + 0.15);
+      g.gain.setValueAtTime(0.15, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+      osc.connect(g);
+      g.connect(this.masterGain);
+      osc.start(time);
+      osc.stop(time + 0.2);
+    }
+
+    playAchievement() {
+      if (!this.ctx || !this.enabled) return;
+      const time = this.ctx.currentTime;
+      // Majestic celebratory fanfare
+      [523.25, 659.25, 783.99, 1046.50].forEach((f, idx) => {
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, time + idx * 0.08);
+        g.gain.setValueAtTime(0.22, time + idx * 0.08);
+        g.gain.exponentialRampToValueAtTime(0.001, time + idx * 0.08 + 0.4);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(time + idx * 0.08);
+        osc.stop(time + idx * 0.08 + 0.4);
+      });
+    }
+
+    toggle() {
+      this.enabled = !this.enabled;
+      if (this.masterGain) {
+        this.masterGain.gain.setValueAtTime(this.enabled ? 0.35 : 0.0, this.ctx.currentTime);
+      }
+      return this.enabled;
+    }
+  }
+
+  // 2. CLOTH PHYSICS SIMULATION (VERLET INTEGRATION FOR RED SCARF)
+  class ClothScarfPhysics {
+    constructor(scene, count = 18) {
+      this.scene = scene;
+      this.count = count;
+      this.particles = [];
+      this.restDistance = 0.16;
+
+      for (let i = 0; i < this.count; i++) {
+        this.particles.push({
+          pos: new THREE.Vector3(0, 1.8, -i * this.restDistance),
+          prevPos: new THREE.Vector3(0, 1.8, -i * this.restDistance),
+          pinned: (i === 0 || i === 1) // First 2 nodes pinned around pelican neck
+        });
+      }
+
+      // Procedural Silk Ribbon Mesh
+      const geom = new THREE.BufferGeometry();
+      const posArray = new Float32Array(this.count * 2 * 3);
+      const uvs = new Float32Array(this.count * 2 * 2);
+      const indices = [];
+
+      for (let i = 0; i < this.count - 1; i++) {
+        const a = i * 2;
+        const b = i * 2 + 1;
+        const c = (i + 1) * 2;
+        const d = (i + 1) * 2 + 1;
+        indices.push(a, c, b, b, c, d);
+      }
+
+      geom.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xef4444, // Vibrant Red
+        roughness: 0.35,
+        metalness: 0.1,
+        side: THREE.DoubleSide
+      });
+
+      this.mesh = new THREE.Mesh(geom, mat);
+      this.mesh.castShadow = true;
+      this.scene.add(this.mesh);
+    }
+
+    update(neckWorldPos, bikeSpeed, lateralVel, dt, isWheelie) {
+      // Pin root to pelican neck
+      this.particles[0].pos.copy(neckWorldPos);
+      this.particles[1].pos.copy(neckWorldPos).add(new THREE.Vector3(0, -0.05, -0.08));
+
+      const damping = 0.94;
+      const speedNorm = bikeSpeed / 16.0;
+
+      // Dynamic wind force backwards + gravity + high-speed flutter
+      const windForce = new THREE.Vector3(
+        -lateralVel * 0.25, // Centrifugal tail trail
+        -0.08 + Math.sin(Date.now() * 0.015) * 0.04 * (1 + speedNorm),
+        -(1.2 + speedNorm * 3.5) // Stream behind
+      );
+
+      if (isWheelie) {
+        windForce.y += 0.4;
+      }
+
+      for (let i = 2; i < this.count; i++) {
+        const p = this.particles[i];
+        if (p.pinned) continue;
+
+        const vel = p.pos.clone().sub(p.prevPos).multiplyScalar(damping);
+        p.prevPos.copy(p.pos);
+
+        // High frequency fluttering noise
+        const flutter = Math.sin(Date.now() * 0.02 + i * 0.8) * 0.02 * (1 + speedNorm * 2.5);
+        p.pos.add(vel);
+        p.pos.addScaledVector(windForce, dt * 1.5);
+        p.pos.x += flutter;
+      }
+
+      // Relaxation constraints (preserve distance)
+      for (let step = 0; step < 4; step++) {
+        for (let i = 0; i < this.count - 1; i++) {
+          const p1 = this.particles[i];
+          const p2 = this.particles[i + 1];
+          const delta = p2.pos.clone().sub(p1.pos);
+          const dist = delta.length();
+          if (dist === 0) continue;
+          const diff = (dist - this.restDistance) / dist;
+
+          if (!p1.pinned) p1.pos.addScaledVector(delta, 0.5 * diff);
+          if (!p2.pinned) p2.pos.addScaledVector(delta, -0.5 * diff);
+        }
+      }
+
+      // Rebuild Ribbon Geometry
+      const posAttr = this.mesh.geometry.attributes.position;
+      const width = 0.12;
+
+      for (let i = 0; i < this.count; i++) {
+        const p = this.particles[i].pos;
+        let right = new THREE.Vector3(1, 0, 0);
+        if (i < this.count - 1) {
+          const tangent = this.particles[i + 1].pos.clone().sub(p).normalize();
+          right.crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
+        }
+
+        const taper = 1.0 - (i / this.count) * 0.4; // Taper towards tip
+        const halfW = (width * taper) / 2;
+
+        posAttr.setXYZ(i * 2, p.x - right.x * halfW, p.y - right.y * halfW, p.z - right.z * halfW);
+        posAttr.setXYZ(i * 2 + 1, p.x + right.x * halfW, p.y + right.y * halfW, p.z + right.z * halfW);
+      }
+
+      posAttr.needsUpdate = true;
+      this.mesh.geometry.computeVertexNormals();
+    }
+  }
+
+  // 3. 14 ACHIEVEMENTS SYSTEM
+  const ACHIEVEMENTS_DATA = [
+    { id: 'first_roll', icon: '🚲', title: '初次启程', desc: '启动自行车开始海岸骑行', unlocked: false },
+    { id: 'first_catch', icon: '🐟', title: '初尝美味', desc: '成功捕获第 1 条飞鱼', unlocked: false },
+    { id: 'catch_10', icon: '🎣', title: '捕鱼达人', desc: '累计捕获 10 条飞鱼', unlocked: false },
+    { id: 'catch_30', icon: '🐬', title: '飞鱼大师', desc: '累计捕获 30 条飞鱼', unlocked: false },
+    { id: 'speed_50', icon: '⚡', title: '极速狂飙', desc: '骑行时速突破 50 km/h', unlocked: false },
+    { id: 'sunset_glow', icon: '🌅', title: '落日熔金', desc: '领略海岸公路黄昏绝美落日', unlocked: false },
+    { id: 'starlit_night', icon: '🌙', title: '星月神话', desc: '经历完整的日落，进入繁星月夜', unlocked: false },
+    { id: 'big_air', icon: '🚀', title: '腾空一跃', desc: '成功完成一次高空跳跃', unlocked: false },
+    { id: 'winged_wheelie', icon: '🪽', title: '绝技展翅', desc: '按 T 键展翅抬前轮特技超过 2 秒', unlocked: false },
+    { id: 'aerial_catch', icon: '🎯', title: '空中华尔兹', desc: '在空中跳跃状态下捕获一条飞鱼', unlocked: false },
+    { id: 'cadence_120', icon: '⚙️', title: '踏频狂人', desc: '踏频达到 120 RPM 以上', unlocked: false },
+    { id: 'distance_1000', icon: '🛣️', title: '海岸漫游者', desc: '累计骑行里程超过 1000 米', unlocked: false },
+    { id: 'wind_scarf', icon: '🧣', title: '红巾随风', desc: '在高速狂飙下触发红围巾极致飘扬', unlocked: false },
+    { id: 'legend_pelican', icon: '👑', title: '传奇鹈鹕', desc: '累计得分超过 2000 分或解锁全能骑士', unlocked: false }
+  ];
+
+  class AchievementManager {
+    constructor(soundEngine) {
+      this.sound = soundEngine;
+      this.list = ACHIEVEMENTS_DATA;
+      this.wheelieTimer = 0;
+      this.renderModalGrid();
+      this.updateCounter();
+    }
+
+    unlock(id) {
+      const ach = this.list.find(a => a.id === id);
+      if (ach && !ach.unlocked) {
+        ach.unlocked = true;
+        this.sound.playAchievement();
+        this.showPopup(ach);
+        this.renderModalGrid();
+        this.updateCounter();
+      }
+    }
+
+    showPopup(ach) {
+      const pop = document.getElementById('achievement-popup');
+      document.getElementById('ach-pop-icon').textContent = ach.icon;
+      document.getElementById('ach-pop-title').textContent = ach.title + '：' + ach.desc;
+      pop.classList.add('show');
+      setTimeout(() => pop.classList.remove('show'), 4000);
+    }
+
+    updateCounter() {
+      const count = this.list.filter(a => a.unlocked).length;
+      document.getElementById('ach-count').textContent = count;
+    }
+
+    renderModalGrid() {
+      const grid = document.getElementById('achievements-grid');
+      grid.innerHTML = '';
+      this.list.forEach(a => {
+        const card = document.createElement('div');
+        card.className = `ach-card ${a.unlocked ? 'unlocked' : ''}`;
+        card.innerHTML = `
+          <div class="ach-card-top">
+            <span class="ach-card-icon">${a.icon}</span>
+            <span class="ach-card-title">${a.title}</span>
+          </div>
+          <div class="ach-card-desc">${a.desc}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+  }
+
+  // 4. MAIN GAME ENGINE
+  class PelicanBikeGame {
+    constructor() {
+      this.container = document.getElementById('canvas-container');
+      this.sound = new SoundEngine();
+      this.achievements = new AchievementManager(this.sound);
+
+      // Scene, Camera, Renderer
+      this.scene = new THREE.Scene();
+      this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
+      this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.05;
+      this.container.appendChild(this.renderer.domElement);
+
+      // Game Variables
+      this.speed = 0; // km/h equivalent
+      this.maxSpeed = 65;
+      this.lateralPos = 0; // -1 to 1 (lane position)
+      this.lateralVel = 0;
+      this.jumpY = 0;
+      this.jumpVel = 0;
+      this.isJumping = false;
+      this.isWheelie = false;
+      this.wheelieAngle = 0;
+      this.pedalAngle = 0;
+      this.distanceTraveled = 0;
+      this.score = 0;
+      this.combo = 1;
+      this.comboTimer = 0;
+
+      // Day-Night Cycle (0 = Sunset, 0.5 = Dusk, 1.0 = Moonlit Night)
+      this.timeOfDay = 0.15;
+      this.dayCycleSpeed = 0.007; // Smooth cycle
+
+      // Camera Modes: 0=Follow, 1=Pelican POV, 2=Cinematic, 3=Side Stunt, 4=Top Down
+      this.camMode = 0;
+      this.cinematicAngle = 0;
+
+      // Autopilot AI
+      this.idleTime = 0;
+      this.isAutopilot = false;
+
+      // Performance & Adaptive Quality
+      this.fpsHistory = [];
+      this.lastFrameTime = performance.now();
+      this.qualityLevel = '极致 (Ultra)';
+
+      // Inputs
+      this.keys = { w: false, s: false, a: false, d: false, space: false, t: false };
+
+      // Initialize World Components
+      this.initLightingAndSky();
+      this.initOcean();
+      this.initRoadAndEnvironment();
+      this.initPelicanAndBike();
+      this.initFishSystem();
+      this.initEventListeners();
+
+      // Trigger initial achievement
+      setTimeout(() => this.achievements.unlock('sunset_glow'), 1500);
+
+      // Start Loop
+      this.animate = this.animate.bind(this);
+      requestAnimationFrame(this.animate);
+    }
+
+    // LIGHTING & ATMOSPHERE (DAY-NIGHT CYCLE)
+    initLightingAndSky() {
+      this.scene.fog = new THREE.FogExp2(0xf97316, 0.0028);
+
+      // Hemisphere Light
+      this.hemiLight = new THREE.HemisphereLight(0xffedd5, 0x0284c7, 0.8);
+      this.scene.add(this.hemiLight);
+
+      // Directional Sun/Moon Light
+      this.sunLight = new THREE.DirectionalLight(0xffedd5, 1.6);
+      this.sunLight.position.set(60, 45, 50);
+      this.sunLight.castShadow = true;
+      this.sunLight.shadow.mapSize.width = 2048;
+      this.sunLight.shadow.mapSize.height = 2048;
+      this.sunLight.shadow.camera.near = 0.5;
+      this.sunLight.shadow.camera.far = 250;
+      const d = 30;
+      this.sunLight.shadow.camera.left = -d;
+      this.sunLight.shadow.camera.right = d;
+      this.sunLight.shadow.camera.top = d;
+      this.sunLight.shadow.camera.bottom = -d;
+      this.scene.add(this.sunLight);
+
+      // Bike Headlight (activated in dusk/night)
+      this.bikeHeadlight = new THREE.SpotLight(0xffffff, 0, 45, Math.PI / 6, 0.4);
+      this.bikeHeadlight.castShadow = true;
+      this.scene.add(this.bikeHeadlight);
+      this.scene.add(this.bikeHeadlight.target);
+
+      // Stars for Night Sky (1200 points)
+      const starsGeom = new THREE.BufferGeometry();
+      const starCount = 1500;
+      const starPositions = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        starPositions[i * 3] = (Math.random() - 0.5) * 800;
+        starPositions[i * 3 + 1] = Math.random() * 350 + 20;
+        starPositions[i * 3 + 2] = (Math.random() - 0.5) * 800;
+      }
+      starsGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+      this.starsMat = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 1.5,
+        transparent: true,
+        opacity: 0.0
+      });
+      this.starsMesh = new THREE.Points(starsGeom, this.starsMat);
+      this.scene.add(this.starsMesh);
+
+      // Glowing Moon Sphere
+      const moonGeom = new THREE.SphereGeometry(7, 24, 24);
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
+      this.moonMesh = new THREE.Mesh(moonGeom, moonMat);
+      this.moonMesh.position.set(-90, 85, -200);
+      this.moonMesh.visible = false;
+      this.scene.add(this.moonMesh);
+    }
+
+    // OCEAN WITH SWELL WAVES & SHORE BREAK
+    initOcean() {
+      const oceanWidth = 700;
+      const oceanLength = 900;
+      this.oceanGeom = new THREE.PlaneGeometry(oceanWidth, oceanLength, 70, 90);
+      this.oceanGeom.rotateX(-Math.PI / 2);
+
+      this.oceanMat = new THREE.MeshStandardMaterial({
+        color: 0x0284c7, // Tropical blue
+        roughness: 0.15,
+        metalness: 0.45,
+        flatShading: true
+      });
+
+      this.oceanMesh = new THREE.Mesh(this.oceanGeom, this.oceanMat);
+      this.oceanMesh.position.set(160, -3.2, 0); // Positioned to right side of highway
+      this.scene.add(this.oceanMesh);
+
+      // White Shoreline Foam Strip
+      const foamGeom = new THREE.PlaneGeometry(14, 900, 10, 80);
+      foamGeom.rotateX(-Math.PI / 2);
+      this.foamMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.65
+      });
+      this.foamMesh = new THREE.Mesh(foamGeom, this.foamMat);
+      this.foamMesh.position.set(16, -2.8, 0);
+      this.scene.add(this.foamMesh);
+    }
+
+    // COASTAL HIGHWAY & CLIFFS
+    initRoadAndEnvironment() {
+      this.roadGroup = new THREE.Group();
+      this.scene.add(this.roadGroup);
+
+      // Two-lane asphalt road
+      const roadWidth = 14;
+      const roadLength = 900;
+      const roadGeom = new THREE.PlaneGeometry(roadWidth, roadLength, 1, 60);
+      roadGeom.rotateX(-Math.PI / 2);
+      const roadMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.8
+      });
+      this.roadMesh = new THREE.Mesh(roadGeom, roadMat);
+      this.roadMesh.receiveShadow = true;
+      this.roadGroup.add(this.roadMesh);
+
+      // Double Yellow Center Lines & White Shoulder Lines
+      const lineGeom = new THREE.PlaneGeometry(0.3, roadLength, 1, 1);
+      lineGeom.rotateX(-Math.PI / 2);
+      const yellowMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+      const whiteMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+
+      const centerLineL = new THREE.Mesh(lineGeom, yellowMat);
+      centerLineL.position.set(-0.25, 0.02, 0);
+      const centerLineR = new THREE.Mesh(lineGeom, yellowMat);
+      centerLineR.position.set(0.25, 0.02, 0);
+      const shoulderL = new THREE.Mesh(lineGeom, whiteMat);
+      shoulderL.position.set(-6.5, 0.02, 0);
+      const shoulderR = new THREE.Mesh(lineGeom, whiteMat);
+      shoulderR.position.set(6.5, 0.02, 0);
+
+      this.roadGroup.add(centerLineL, centerLineR, shoulderL, shoulderR);
+
+      // Guardrails on Seaward Edge
+      const railGeom = new THREE.BoxGeometry(0.3, 0.9, roadLength);
+      const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.6 });
+      const guardRail = new THREE.Mesh(railGeom, railMat);
+      guardRail.position.set(7.2, 0.5, 0);
+      guardRail.castShadow = true;
+      this.roadGroup.add(guardRail);
+
+      // Left Inland Cliffs / Mountain Terrain
+      const cliffGeom = new THREE.BoxGeometry(40, 28, roadLength);
+      const cliffMat = new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        roughness: 0.9
+      });
+      const cliffMesh = new THREE.Mesh(cliffGeom, cliffMat);
+      cliffMesh.position.set(-28, 10, 0);
+      cliffMesh.receiveShadow = true;
+      this.roadGroup.add(cliffMesh);
+
+      // Roadside Palm Trees & Street Lamps (Repeated every 40m)
+      this.streetLamps = [];
+      for (let z = -400; z <= 400; z += 50) {
+        // Palm Tree on sandy side
+        const palm = this.createPalmTree();
+        palm.position.set(9.5, -0.5, z + (Math.random() * 8 - 4));
+        this.roadGroup.add(palm);
+
+        // Street Lamp with glowing bulb
+        const lamp = this.createStreetLamp();
+        lamp.position.set(-7.2, 0, z);
+        this.roadGroup.add(lamp);
+        this.streetLamps.push(lamp);
+      }
+    }
+
+    createPalmTree() {
+      const group = new THREE.Group();
+      // Curved trunk
+      const trunkGeom = new THREE.CylinderGeometry(0.25, 0.45, 7, 7);
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+      const trunk = new THREE.Mesh(trunkGeom, trunkMat);
+      trunk.position.y = 3.5;
+      trunk.rotation.z = 0.08;
+      trunk.castShadow = true;
+      group.add(trunk);
+
+      // Fronds
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6, side: THREE.DoubleSide });
+      for (let i = 0; i < 6; i++) {
+        const leafGeom = new THREE.ConeGeometry(1.6, 4.5, 4);
+        leafGeom.rotateX(Math.PI / 2.3);
+        const leaf = new THREE.Mesh(leafGeom, leafMat);
+        leaf.position.set(0, 6.8, 0);
+        leaf.rotation.y = (i * Math.PI) / 3;
+        leaf.castShadow = true;
+        group.add(leaf);
+      }
+      return group;
+    }
+
+    createStreetLamp() {
+      const group = new THREE.Group();
+      const poleGeom = new THREE.CylinderGeometry(0.12, 0.16, 7.5, 6);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7 });
+      const pole = new THREE.Mesh(poleGeom, poleMat);
+      pole.position.y = 3.75;
+      pole.castShadow = true;
+      group.add(pole);
+
+      // Arm reaching over road
+      const armGeom = new THREE.BoxGeometry(2.5, 0.12, 0.12);
+      const arm = new THREE.Mesh(armGeom, poleMat);
+      arm.position.set(1.1, 7.4, 0);
+      group.add(arm);
+
+      // Bulb
+      const bulbGeom = new THREE.SphereGeometry(0.3, 12, 12);
+      const bulbMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+      const bulb = new THREE.Mesh(bulbGeom, bulbMat);
+      bulb.position.set(2.2, 7.3, 0);
+      group.add(bulb);
+      group.userData.bulb = bulb;
+
+      return group;
+    }
+
+    // PROCEDURAL 3D PELICAN & BICYCLE WITH ACCESSORIES
+    initPelicanAndBike() {
+      this.pelicanBikeRoot = new THREE.Group();
+      this.scene.add(this.pelicanBikeRoot);
+
+      // 1. Bicycle
+      this.bikeGroup = new THREE.Group();
+      this.pelicanBikeRoot.add(this.bikeGroup);
+
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, metalness: 0.8, roughness: 0.2 });
+      const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.1 });
+      const rubberMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+
+      // Frame Tubes
+      const tubeGeom = (len, r = 0.05) => new THREE.CylinderGeometry(r, r, len, 8);
+
+      const downTube = new THREE.Mesh(tubeGeom(1.4), frameMat);
+      downTube.position.set(0, 0.65, 0.1);
+      downTube.rotation.x = -0.55;
+      this.bikeGroup.add(downTube);
+
+      const topTube = new THREE.Mesh(tubeGeom(1.2), frameMat);
+      topTube.position.set(0, 1.05, 0.15);
+      topTube.rotation.x = Math.PI / 2;
+      this.bikeGroup.add(topTube);
+
+      const seatTube = new THREE.Mesh(tubeGeom(1.0), frameMat);
+      seatTube.position.set(0, 0.75, -0.4);
+      seatTube.rotation.x = 0.25;
+      this.bikeGroup.add(seatTube);
+
+      // Wheels (Rear & Steerable Front)
+      const wheelGeom = new THREE.TorusGeometry(0.48, 0.08, 12, 24);
+      this.rearWheel = new THREE.Mesh(wheelGeom, rubberMat);
+      this.rearWheel.position.set(0, 0.5, -0.75);
+      this.rearWheel.castShadow = true;
+      this.bikeGroup.add(this.rearWheel);
+
+      this.frontFork = new THREE.Group();
+      this.frontFork.position.set(0, 0.5, 0.75);
+      this.bikeGroup.add(this.frontFork);
+
+      this.frontWheel = new THREE.Mesh(wheelGeom, rubberMat);
+      this.frontWheel.castShadow = true;
+      this.frontFork.add(this.frontWheel);
+
+      // Handlebars
+      const barGeom = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8);
+      barGeom.rotateZ(Math.PI / 2);
+      const handlebars = new THREE.Mesh(barGeom, chromeMat);
+      handlebars.position.set(0, 0.65, 0.05);
+      this.frontFork.add(handlebars);
+
+      // Crank & Pedals
+      this.crank = new THREE.Group();
+      this.crank.position.set(0, 0.38, -0.2);
+      this.bikeGroup.add(this.crank);
+
+      const pedalL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.18), chromeMat);
+      pedalL.position.set(-0.24, 0.18, 0);
+      const pedalR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.18), chromeMat);
+      pedalR.position.set(0.24, -0.18, 0);
+      this.crank.add(pedalL, pedalR);
+
+      // 2. Pelican Model
+      this.pelican = new THREE.Group();
+      this.pelican.position.set(0, 0.85, -0.25);
+      this.bikeGroup.add(this.pelican);
+
+      const featherMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 });
+      const beakMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.35 });
+      const pouchMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.6, transparent: true, opacity: 0.95 });
+
+      // Plump Torso
+      const bodyGeom = new THREE.SphereGeometry(0.48, 16, 16);
+      bodyGeom.scale(0.85, 1.1, 1.3);
+      this.bodyMesh = new THREE.Mesh(bodyGeom, featherMat);
+      this.bodyMesh.position.set(0, 0.4, 0);
+      this.bodyMesh.rotation.x = 0.35;
+      this.bodyMesh.castShadow = true;
+      this.pelican.add(this.bodyMesh);
+
+      // Neck & Head
+      this.headGroup = new THREE.Group();
+      this.headGroup.position.set(0, 0.82, 0.35);
+      this.pelican.add(this.headGroup);
+
+      const headGeom = new THREE.SphereGeometry(0.26, 16, 16);
+      headGeom.scale(0.9, 1.0, 1.15);
+      const head = new THREE.Mesh(headGeom, featherMat);
+      head.castShadow = true;
+      this.headGroup.add(head);
+
+      // Pelican Beak & Throat Pouch (Articulated jaw)
+      const topBeakGeom = new THREE.ConeGeometry(0.18, 1.05, 8);
+      topBeakGeom.rotateX(Math.PI / 2);
+      topBeakGeom.scale(0.7, 0.4, 1.0);
+      const topBeak = new THREE.Mesh(topBeakGeom, beakMat);
+      topBeak.position.set(0, 0.04, 0.65);
+      topBeak.castShadow = true;
+      this.headGroup.add(topBeak);
+
+      // Lower Beak & Throat Pouch
+      this.lowerJaw = new THREE.Group();
+      this.lowerJaw.position.set(0, -0.06, 0.2);
+      this.headGroup.add(this.lowerJaw);
+
+      const pouchGeom = new THREE.SphereGeometry(0.24, 12, 12);
+      pouchGeom.scale(0.5, 0.9, 1.4);
+      this.pouchMesh = new THREE.Mesh(pouchGeom, pouchMat);
+      this.pouchMesh.position.set(0, -0.15, 0.35);
+      this.lowerJaw.add(this.pouchMesh);
+
+      // 3. Helm & Sunglasses
+      // Aero Cycling Helmet
+      const helmetGeom = new THREE.SphereGeometry(0.32, 16, 16);
+      helmetGeom.scale(0.92, 0.8, 1.35);
+      const helmetMat = new THREE.MeshStandardMaterial({
+        color: 0x06b6d4, // Cyan Aero finish
+        metalness: 0.7,
+        roughness: 0.2
+      });
+      const helmet = new THREE.Mesh(helmetGeom, helmetMat);
+      helmet.position.set(0, 0.16, -0.05);
+      helmet.rotation.x = -0.12;
+      this.headGroup.add(helmet);
+
+      // Cool Sunglasses
+      const glassesGeom = new THREE.BoxGeometry(0.48, 0.12, 0.08);
+      const glassesMat = new THREE.MeshStandardMaterial({
+        color: 0x09090b,
+        metalness: 0.9,
+        roughness: 0.05
+      });
+      const glasses = new THREE.Mesh(glassesGeom, glassesMat);
+      glasses.position.set(0, 0.06, 0.26);
+      this.headGroup.add(glasses);
+
+      // 4. Spreadable Wings (Left & Right)
+      const wingGeom = new THREE.BoxGeometry(0.8, 0.08, 0.45);
+      this.leftWing = new THREE.Mesh(wingGeom, featherMat);
+      this.leftWing.position.set(-0.45, 0.45, 0);
+      this.leftWing.rotation.set(0, 0, -0.4);
+      this.leftWing.castShadow = true;
+      this.pelican.add(this.leftWing);
+
+      this.rightWing = new THREE.Mesh(wingGeom, featherMat);
+      this.rightWing.position.set(0.45, 0.45, 0);
+      this.rightWing.rotation.set(0, 0, 0.4);
+      this.rightWing.castShadow = true;
+      this.pelican.add(this.rightWing);
+
+      // 5. Red Scarf Cloth Physics Initializer
+      this.scarfPhysics = new ClothScarfPhysics(this.scene);
+    }
+
+    // FLYING FISH CATCHING SYSTEM
+    initFishSystem() {
+      this.fishes = [];
+      const fishGeom = new THREE.ConeGeometry(0.18, 0.7, 7);
+      fishGeom.rotateX(Math.PI / 2);
+      const fishMat = new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        emissive: 0x0284c7,
+        metalness: 0.7,
+        roughness: 0.2
+      });
+
+      for (let i = 0; i < 12; i++) {
+        const fish = new THREE.Mesh(fishGeom, fishMat.clone());
+        fish.castShadow = true;
+        this.scene.add(fish);
+        this.fishes.push({
+          mesh: fish,
+          active: false,
+          x: 0,
+          y: 0,
+          z: 0,
+          vx: 0,
+          vy: 0,
+          vz: 0,
+          rotSpeed: 0,
+          type: 'lane' // 'lane' or 'wave_jump'
+        });
+      }
+    }
+
+    spawnFish(playerZ) {
+      const fish = this.fishes.find(f => !f.active);
+      if (!fish) return;
+
+      fish.active = true;
+      fish.mesh.visible = true;
+
+      const isHighLeap = Math.random() < 0.35;
+      if (isHighLeap) {
+        // High leaping wave fish coming from ocean
+        fish.type = 'wave_jump';
+        fish.x = 8.5;
+        fish.y = -1.0;
+        fish.z = playerZ - 60 - Math.random() * 30;
+        fish.vx = -(3.0 + Math.random() * 2.5); // Leap towards road
+        fish.vy = 5.5 + Math.random() * 2.5;
+        fish.vz = 0;
+      } else {
+        // Skimming fish hopping along road lanes
+        fish.type = 'lane';
+        const lane = (Math.random() - 0.5) * 8.5;
+        fish.x = lane;
+        fish.y = 0.5;
+        fish.z = playerZ - 50 - Math.random() * 40;
+        fish.vx = (Math.random() - 0.5) * 0.8;
+        fish.vy = 2.0 + Math.random() * 1.5;
+        fish.vz = 0;
+      }
+      fish.mesh.position.set(fish.x, fish.y, fish.z);
+    }
+
+    // USER CONTROLS & TOUCH
+    initEventListeners() {
+      window.addEventListener('resize', () => {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Keyboard
+      window.addEventListener('keydown', (e) => {
+        this.idleTime = 0;
+        this.isAutopilot = false;
+        const k = e.key.toLowerCase();
+        if (k === 'w' || e.key === 'ArrowUp') this.keys.w = true;
+        if (k === 's' || e.key === 'ArrowDown') this.keys.s = true;
+        if (k === 'a' || e.key === 'ArrowLeft') this.keys.a = true;
+        if (k === 'd' || e.key === 'ArrowRight') this.keys.d = true;
+        if (e.code === 'Space') { this.keys.space = true; e.preventDefault(); }
+        if (k === 't') this.keys.t = true;
+
+        if (k === 'c') {
+          this.setCamMode((this.camMode + 1) % 5);
+        }
+        if (['1', '2', '3', '4', '5'].includes(k)) {
+          this.setCamMode(parseInt(k) - 1);
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'w' || e.key === 'ArrowUp') this.keys.w = false;
+        if (k === 's' || e.key === 'ArrowDown') this.keys.s = false;
+        if (k === 'a' || e.key === 'ArrowLeft') this.keys.a = false;
+        if (k === 'd' || e.key === 'ArrowRight') this.keys.d = false;
+        if (e.code === 'Space') this.keys.space = false;
+        if (k === 't') this.keys.t = false;
+      });
+
+      // Camera Buttons
+      document.querySelectorAll('.cam-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          this.setCamMode(parseInt(e.target.dataset.cam));
+        });
+      });
+
+      // Touch Buttons
+      const bindTouch = (id, keyName) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          this.idleTime = 0;
+          this.isAutopilot = false;
+          this.keys[keyName] = true;
+        });
+        el.addEventListener('pointerup', (e) => {
+          e.preventDefault();
+          this.keys[keyName] = false;
+        });
+        el.addEventListener('pointerleave', () => { this.keys[keyName] = false; });
+      };
+
+      bindTouch('t-gas', 'w');
+      bindTouch('t-brake', 's');
+      bindTouch('t-left', 'a');
+      bindTouch('t-right', 'd');
+      bindTouch('t-jump', 'space');
+      bindTouch('t-wheelie', 't');
+
+      // Audio Toggle Button
+      document.getElementById('audio-toggle-btn').addEventListener('click', () => {
+        const active = this.sound.toggle();
+        document.getElementById('audio-icon').textContent = active ? '🔊' : '🔇';
+      });
+
+      // Achievements Modal
+      const modal = document.getElementById('achievements-modal');
+      document.getElementById('achievements-btn').addEventListener('click', () => {
+        modal.style.display = 'flex';
+      });
+      document.getElementById('close-modal').addEventListener('click', () => {
+        modal.style.display = 'none';
+      });
+
+      // Start Game Button
+      document.getElementById('start-game-btn').addEventListener('click', () => {
+        document.getElementById('start-overlay').style.display = 'none';
+        this.sound.init();
+        this.achievements.unlock('first_roll');
+      });
+    }
+
+    setCamMode(idx) {
+      this.camMode = idx;
+      document.querySelectorAll('.cam-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === idx);
+      });
+    }
+
+    // MAIN UPDATE LOOP
+    animate(currentTime) {
+      requestAnimationFrame(this.animate);
+
+      const dt = Math.min((currentTime - this.lastFrameTime) / 1000, 0.1);
+      this.lastFrameTime = currentTime;
+
+      // Frame Rate & Adaptive Quality Tracking
+      this.updateFPS(dt);
+
+      // Autopilot Idle Check
+      this.idleTime += dt;
+      if (this.idleTime > 3.5 && !this.isAutopilot) {
+        this.isAutopilot = true;
+      }
+      document.getElementById('autopilot-banner').style.display = this.isAutopilot ? 'block' : 'none';
+
+      // Execute Autopilot AI when idle
+      if (this.isAutopilot) {
+        this.runAutopilotAI();
+      }
+
+      // Physics & Movement Update
+      this.updateMovement(dt);
+
+      // Pelican & Bike Procedural Animations
+      this.updatePelicanAndBike(dt);
+
+      // Ocean Waves & Shore Surf Animation
+      this.updateOcean(currentTime * 0.001);
+
+      // Day-Night Cycle Transition
+      this.updateDayNight(dt);
+
+      // Flying Fish Lifecycle & Collision Catching
+      this.updateFishes(dt);
+
+      // Camera Follow & View Modes
+      this.updateCamera(dt);
+
+      // Dynamic Audio Synth Tempo & Effects
+      this.sound.setSpeed(this.speed / this.maxSpeed);
+      this.sound.updateMusic();
+
+      // UI HUD Metrics
+      this.updateHUD();
+
+      // Render Scene
+      this.renderer.render(this.scene, this.camera);
+    }
+
+    // AUTOPILOT AI LOGIC
+    runAutopilotAI() {
+      // Cruise speed around 38 km/h
+      if (this.speed < 38) this.keys.w = true; else this.keys.w = false;
+      this.keys.s = false;
+
+      // Find nearest active fish ahead
+      let nearestFish = null;
+      let minDist = 999;
+      const playerZ = this.pelicanBikeRoot.position.z;
+
+      for (const f of this.fishes) {
+        if (f.active && f.z < playerZ && (playerZ - f.z) < minDist) {
+          minDist = playerZ - f.z;
+          nearestFish = f;
+        }
+      }
+
+      if (nearestFish) {
+        const dx = nearestFish.x - this.lateralPos;
+        if (dx > 0.4) { this.keys.d = true; this.keys.a = false; }
+        else if (dx < -0.4) { this.keys.a = true; this.keys.d = false; }
+        else { this.keys.a = false; this.keys.d = false; }
+
+        // Jump if fish is high up
+        if (minDist < 12 && nearestFish.y > 1.8 && !this.isJumping) {
+          this.keys.space = true;
+        } else {
+          this.keys.space = false;
+        }
+      } else {
+        // Return to center lane
+        if (this.lateralPos > 0.5) this.keys.a = true;
+        else if (this.lateralPos < -0.5) this.keys.d = true;
+      }
+    }
+
+    // BICYCLE PHYSICS & SPEED UPDATE
+    updateMovement(dt) {
+      // Acceleration & Braking
+      const accel = 18.0;
+      const brake = 32.0;
+      const drag = 3.5;
+
+      if (this.keys.w) {
+        this.speed = Math.min(this.speed + accel * dt, this.maxSpeed);
+      } else if (this.keys.s) {
+        this.speed = Math.max(this.speed - brake * dt, 0);
+      } else {
+        this.speed = Math.max(this.speed - drag * dt, 0);
+      }
+
+      // Check Speed Achievement
+      if (this.speed >= 50) this.achievements.unlock('speed_50');
+      if (this.speed >= 40) this.achievements.unlock('wind_scarf');
+
+      // Lateral Steering (Lane change)
+      const steerSpeed = 6.5;
+      if (this.keys.a) this.lateralVel = -steerSpeed;
+      else if (this.keys.d) this.lateralVel = steerSpeed;
+      else this.lateralVel *= 0.82;
+
+      this.lateralPos += this.lateralVel * dt;
+      this.lateralPos = THREE.MathUtils.clamp(this.lateralPos, -5.5, 5.5);
+
+      // Jumping Physics
+      if (this.keys.space && !this.isJumping) {
+        this.isJumping = true;
+        this.jumpVel = 9.5;
+        this.sound.playJump();
+        this.achievements.unlock('big_air');
+      }
+
+      if (this.isJumping) {
+        this.jumpY += this.jumpVel * dt;
+        this.jumpVel -= 22.0 * dt; // Gravity
+        if (this.jumpY <= 0) {
+          this.jumpY = 0;
+          this.isJumping = false;
+        }
+      }
+
+      // Wheelie & Wing Stunt (T Key)
+      if (this.keys.t && this.speed > 8) {
+        this.isWheelie = true;
+        this.wheelieAngle = THREE.MathUtils.lerp(this.wheelieAngle, 0.65, dt * 6);
+        this.achievements.wheelieTimer += dt;
+        if (this.achievements.wheelieTimer > 2.0) {
+          this.achievements.unlock('winged_wheelie');
+        }
+      } else {
+        this.isWheelie = false;
+        this.wheelieAngle = THREE.MathUtils.lerp(this.wheelieAngle, 0, dt * 8);
+        this.achievements.wheelieTimer = 0;
+      }
+
+      // Advance Forward Along Endless Road
+      const forwardMps = (this.speed * 1000) / 3600;
+      this.distanceTraveled += forwardMps * dt;
+      if (this.distanceTraveled >= 1000) this.achievements.unlock('distance_1000');
+
+      this.pelicanBikeRoot.position.z -= forwardMps * dt;
+      this.pelicanBikeRoot.position.x = this.lateralPos;
+      this.pelicanBikeRoot.position.y = this.jumpY;
+
+      // Loop road around player
+      const roadZ = Math.floor(this.pelicanBikeRoot.position.z / 100) * 100;
+      this.roadGroup.position.z = roadZ;
+      this.oceanMesh.position.z = roadZ;
+      this.foamMesh.position.z = roadZ;
+    }
+
+    // PROCEDURAL MODEL ANIMATION
+    updatePelicanAndBike(dt) {
+      const forwardMps = (this.speed * 1000) / 3600;
+      const wheelRevSpeed = forwardMps / 0.48;
+
+      // Spin Wheels
+      this.rearWheel.rotation.x += wheelRevSpeed * dt;
+      this.frontWheel.rotation.x += wheelRevSpeed * dt;
+
+      // Steer Front Fork
+      this.frontFork.rotation.y = THREE.MathUtils.lerp(
+        this.frontFork.rotation.y,
+        -this.lateralVel * 0.05,
+        dt * 8
+      );
+
+      // Frame Wheelie Pitch & Pelican Lean
+      this.bikeGroup.rotation.x = this.wheelieAngle;
+      this.pelicanBikeRoot.rotation.z = -this.lateralVel * 0.035; // Bank into turn
+
+      // Rotate Pedals & Crank
+      this.pedalAngle += wheelRevSpeed * 0.7 * dt;
+      this.crank.rotation.x = this.pedalAngle;
+
+      const cadenceRPM = Math.round((wheelRevSpeed * 0.7 * 60) / (Math.PI * 2));
+      document.getElementById('cadence-val').textContent = cadenceRPM;
+      if (cadenceRPM >= 120) this.achievements.unlock('cadence_120');
+
+      // Head Bobbing with Cadence
+      const bob = Math.sin(this.pedalAngle * 2) * 0.04;
+      this.headGroup.position.y = 0.82 + bob;
+
+      // Wing Flap & Spread
+      if (this.isWheelie || this.isJumping) {
+        const flap = Math.sin(Date.now() * 0.016) * 0.35;
+        this.leftWing.rotation.z = -1.1 + flap;
+        this.rightWing.rotation.z = 1.1 - flap;
+      } else {
+        // Folded against body
+        this.leftWing.rotation.z = THREE.MathUtils.lerp(this.leftWing.rotation.z, -0.4, dt * 6);
+        this.rightWing.rotation.z = THREE.MathUtils.lerp(this.rightWing.rotation.z, 0.4, dt * 6);
+      }
+
+      // Red Scarf Cloth Physics
+      const neckWorld = new THREE.Vector3();
+      this.headGroup.getWorldPosition(neckWorld);
+      neckWorld.y -= 0.1;
+      this.scarfPhysics.update(neckWorld, forwardMps, this.lateralVel, dt, this.isWheelie);
+    }
+
+    // OCEAN WAVE SHADER/VERTEX ANIMATION
+    updateOcean(t) {
+      const pos = this.oceanGeom.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const u = pos.getX(i);
+        const v = pos.getY(i);
+        // Multi-frequency wave formula
+        const wave = Math.sin(u * 0.04 + t * 1.5) * 0.8 +
+                     Math.cos(v * 0.03 + t * 1.8) * 0.6 +
+                     Math.sin((u + v) * 0.06 + t * 2.2) * 0.35;
+        pos.setZ(i, wave);
+      }
+      pos.needsUpdate = true;
+      this.oceanGeom.computeVertexNormals();
+
+      // Pulsing shore foam
+      this.foamMat.opacity = 0.5 + Math.sin(t * 2.5) * 0.25;
+    }
+
+    // DAY-NIGHT CYCLE (SUNSET -> DUSK -> STARLIT MOONLIGHT)
+    updateDayNight(dt) {
+      this.timeOfDay = (this.timeOfDay + this.dayCycleSpeed * dt) % 1.0;
+
+      const t = this.timeOfDay;
+      let skyCol, sunCol, sunIntensity, hemiSky, hemiGround, fogDens;
+
+      if (t < 0.35) {
+        // 0.0 ~ 0.35: GOLDEN SUNSET
+        const p = t / 0.35;
+        skyCol = new THREE.Color().lerpColors(new THREE.Color(0xf97316), new THREE.Color(0xa855f7), p);
+        sunCol = new THREE.Color(0xfef08a);
+        sunIntensity = 1.6 - p * 0.5;
+        hemiSky = new THREE.Color(0xfde047);
+        hemiGround = new THREE.Color(0x0284c7);
+        this.starsMat.opacity = 0.0;
+        this.moonMesh.visible = false;
+        this.bikeHeadlight.intensity = 0;
+        document.getElementById('time-icon').textContent = '🌅';
+        document.getElementById('time-text').textContent = '黄昏落日 (Golden Sunset)';
+      } else if (t < 0.6) {
+        // 0.35 ~ 0.6: DUSK / TWILIGHT
+        const p = (t - 0.35) / 0.25;
+        skyCol = new THREE.Color().lerpColors(new THREE.Color(0xa855f7), new THREE.Color(0x0f172a), p);
+        sunCol = new THREE.Color().lerpColors(new THREE.Color(0xfb923c), new THREE.Color(0x38bdf8), p);
+        sunIntensity = 1.1 - p * 0.7;
+        hemiSky = new THREE.Color(0x64748b);
+        hemiGround = new THREE.Color(0x0f172a);
+        this.starsMat.opacity = p * 0.6;
+        this.moonMesh.visible = true;
+        this.bikeHeadlight.intensity = p * 2.5;
+        document.getElementById('time-icon').textContent = '🌆';
+        document.getElementById('time-text').textContent = '海岸暮色 (Twilight Dusk)';
+      } else {
+        // 0.6 ~ 1.0: STARLIT MOONLIGHT NIGHT
+        const p = (t - 0.6) / 0.4;
+        skyCol = new THREE.Color(0x050814); // Deep night
+        sunCol = new THREE.Color(0xbae6fd); // Silvery moonlight
+        sunIntensity = 0.45;
+        hemiSky = new THREE.Color(0x1e293b);
+        hemiGround = new THREE.Color(0x020617);
+        this.starsMat.opacity = 0.95;
+        this.moonMesh.visible = true;
+        this.bikeHeadlight.intensity = 3.5;
+        document.getElementById('time-icon').textContent = '🌙';
+        document.getElementById('time-text').textContent = '星空月夜 (Starlit Moonlit Night)';
+        this.achievements.unlock('starlit_night');
+      }
+
+      this.renderer.setClearColor(skyCol);
+      this.scene.fog.color.copy(skyCol);
+      this.sunLight.color.copy(sunCol);
+      this.sunLight.intensity = sunIntensity;
+      this.hemiLight.color.copy(hemiSky);
+      this.hemiLight.groundColor.copy(hemiGround);
+
+      // Street lamp bulbs toggle at dusk/night
+      const lampOn = t >= 0.4;
+      this.streetLamps.forEach(lamp => {
+        lamp.userData.bulb.material.color.setHex(lampOn ? 0xfef08a : 0x475569);
+      });
+
+      // Update bike headlight target in front of bike
+      const pPos = this.pelicanBikeRoot.position;
+      this.bikeHeadlight.position.set(pPos.x, pPos.y + 1.2, pPos.z);
+      this.bikeHeadlight.target.position.set(pPos.x, pPos.y + 0.5, pPos.z - 25);
+    }
+
+    // FLYING FISH UPDATE & CATCH COLLISION
+    updateFishes(dt) {
+      const playerPos = this.pelicanBikeRoot.position;
+
+      // Spawn fish periodically ahead
+      if (Math.random() < 0.05) {
+        this.spawnFish(playerPos.z);
+      }
+
+      for (const f of this.fishes) {
+        if (!f.active) continue;
+
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        f.z += f.vz * dt;
+        f.vy -= 9.8 * dt; // Gravity
+
+        // Hop if hitting water
+        if (f.y < -0.8 && f.type === 'lane') {
+          f.y = -0.8;
+          f.vy = 2.4;
+        }
+
+        f.mesh.position.set(f.x, f.y, f.z);
+        f.mesh.rotation.z += 2.0 * dt;
+
+        // Collision Check with Pelican's Beak
+        const dx = Math.abs(f.x - playerPos.x);
+        const dy = Math.abs(f.y - (playerPos.y + 1.4));
+        const dz = Math.abs(f.z - playerPos.z);
+
+        if (dx < 1.3 && dy < 1.4 && dz < 1.8) {
+          // CATCH FISH!
+          f.active = false;
+          f.mesh.visible = false;
+          this.catchFish(f);
+        }
+
+        // Deactivate if far behind
+        if (f.z > playerPos.z + 20) {
+          f.active = false;
+          f.mesh.visible = false;
+        }
+      }
+    }
+
+    catchFish(fishEntity) {
+      this.sound.playCatchFish();
+
+      // Beak scoop snapping animation
+      this.lowerJaw.rotation.x = -0.55;
+      setTimeout(() => { this.lowerJaw.rotation.x = 0; }, 240);
+
+      // Scoring & Combo
+      this.comboTimer = 2.5;
+      this.combo++;
+      const gainedScore = 50 * this.combo;
+      this.score += gainedScore;
+
+      // Check Achievements
+      this.achievements.unlock('first_catch');
+      if (this.score >= 500) this.achievements.unlock('catch_10');
+      if (this.score >= 1500) this.achievements.unlock('catch_30');
+      if (this.isJumping) this.achievements.unlock('aerial_catch');
+      if (this.score >= 3000) this.achievements.unlock('legend_pelican');
+    }
+
+    // 5 DYNAMIC CAMERA MODES
+    updateCamera(dt) {
+      const p = this.pelicanBikeRoot.position;
+
+      switch (this.camMode) {
+        case 0: // 1. Follow Cam (Classic Action Behind)
+          const targetPos = new THREE.Vector3(p.x * 0.75, p.y + 2.8, p.z + 7.5);
+          this.camera.position.lerp(targetPos, dt * 7);
+          this.camera.lookAt(p.x * 0.4, p.y + 1.6, p.z - 10);
+          break;
+
+        case 1: // 2. Pelican POV (Helmet / Sunglasses Cockpit)
+          this.camera.position.set(p.x, p.y + 1.9, p.z - 0.2);
+          this.camera.lookAt(p.x, p.y + 1.5, p.z - 25);
+          break;
+
+        case 2: // 3. Cinematic Drone Cam (Orbiting sweeping shots)
+          this.cinematicAngle += dt * 0.65;
+          const r = 8.5;
+          this.camera.position.set(
+            p.x + Math.sin(this.cinematicAngle) * r,
+            p.y + 2.5 + Math.cos(this.cinematicAngle * 0.5) * 1.5,
+            p.z + Math.cos(this.cinematicAngle) * r
+          );
+          this.camera.lookAt(p.x, p.y + 1.4, p.z);
+          break;
+
+        case 3: // 4. Side Profile Stunt Cam (Telephoto focus on cloth & wheelie)
+          this.camera.position.lerp(new THREE.Vector3(p.x - 7.5, p.y + 2.0, p.z + 1.0), dt * 6);
+          this.camera.lookAt(p.x, p.y + 1.4, p.z);
+          break;
+
+        case 4: // 5. Top-Down Chase Cam
+          this.camera.position.lerp(new THREE.Vector3(p.x * 0.5, p.y + 14.0, p.z + 5.0), dt * 6);
+          this.camera.lookAt(p.x, p.y, p.z - 12);
+          break;
+      }
+    }
+
+    // FRAMERATE-ADAPTIVE QUALITY SYSTEM
+    updateFPS(dt) {
+      const fps = Math.round(1.0 / dt);
+      this.fpsHistory.push(fps);
+      if (this.fpsHistory.length > 40) this.fpsHistory.shift();
+
+      const avgFps = Math.round(this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length);
+      document.getElementById('fps-val').textContent = avgFps + ' FPS';
+
+      // Adaptive Quality adjustments
+      if (avgFps < 38 && this.qualityLevel !== '平衡 (Medium)') {
+        this.qualityLevel = '平衡 (Medium)';
+        this.renderer.setPixelRatio(1.0);
+        this.renderer.shadowMap.enabled = false;
+        document.getElementById('quality-tag').innerHTML = '画质: <b>平衡</b>';
+      } else if (avgFps >= 56 && this.qualityLevel !== '极致 (Ultra)') {
+        this.qualityLevel = '极致 (Ultra)';
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+        this.renderer.shadowMap.enabled = true;
+        document.getElementById('quality-tag').innerHTML = '画质: <b>极致</b>';
+      }
+    }
+
+    // HUD METRICS UPDATE
+    updateHUD() {
+      document.getElementById('speed-val').textContent = Math.round(this.speed);
+      document.getElementById('dist-val').textContent = Math.round(this.distanceTraveled);
+      document.getElementById('score-val').textContent = this.score;
+
+      // Combo expiration
+      if (this.comboTimer > 0) {
+        this.comboTimer -= 0.016;
+        const tag = document.getElementById('combo-tag');
+        tag.style.display = 'inline-block';
+        tag.textContent = `${this.combo}x 连击!`;
+      } else {
+        this.combo = 1;
+        document.getElementById('combo-tag').style.display = 'none';
+      }
+    }
+  }
+
+  // Initialize Game on Window Load
+  window.addEventListener('DOMContentLoaded', () => {
+    new PelicanBikeGame();
+  });
+  </script>
+</body>
+</html>
